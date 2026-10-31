@@ -284,35 +284,137 @@
     if (t) t.remove();
     $("escaner").classList.remove("oculto");
     aviso("", "Abriendo cámara…", "");
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } },
-      });
-    } catch (e) {
+    const ok = await iniciarCamara(leerPref("lba_cam"));
+    if (!ok) {
       cerrarEscaner();
       toast("No se pudo abrir la cámara. Revisá los permisos o usá 'Sacar foto del DNI'.");
       return;
     }
-    const track = stream.getVideoTracks()[0];
-    try {
-      const cap = track.getCapabilities ? track.getCapabilities() : {};
-      if (cap.focusMode && cap.focusMode.includes("continuous")) {
-        await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-      }
-    } catch (e) {}
-    const v = $("video");
-    v.srcObject = stream;
-    await v.play().catch(() => {});
-    aviso("", "Buscando código…", "Acercá el DNI hasta que el código llene el recuadro");
     corriendo = true;
     bucle();
   }
 
+  // ----- Cámara: elección, zoom, linterna y enfoque (pensado para Android) -----
+  const esAndroid = /Android/i.test(navigator.userAgent);
+  let camaras = [], track = null, cap = {}, linterna = false;
+
+  function leerPref(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function guardarPref(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+  async function iniciarCamara(deviceId) {
+    if (stream) stream.getTracks().forEach((t) => t.stop());
+    const base = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+    const intentos = [];
+    if (deviceId) intentos.push({ ...base, deviceId: { exact: deviceId } });
+    intentos.push({ ...base, facingMode: { ideal: "environment" } });
+    stream = null;
+    for (const video of intentos) {
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: false, video }); break; }
+      catch (e) {}
+    }
+    if (!stream) return false;
+    track = stream.getVideoTracks()[0];
+
+    // Lista de cámaras traseras (los nombres aparecen recién después de dar permiso)
+    try {
+      const todas = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === "videoinput");
+      const traseras = todas.filter((d) => !/front|frontal|user|delantera|selfie/i.test(d.label));
+      camaras = traseras.length ? traseras : todas;
+    } catch (e) { camaras = []; }
+
+    const v = $("video");
+    v.srcObject = stream;
+    await v.play().catch(() => {});
+    await configurarControles();
+    return true;
+  }
+
+  async function configurarControles() {
+    cap = {};
+    try { cap = track.getCapabilities ? track.getCapabilities() : {}; } catch (e) {}
+    linterna = false;
+
+    try {
+      if (cap.focusMode && cap.focusMode.includes("continuous")) {
+        await track.applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+      }
+    } catch (e) {}
+
+    // Zoom: permite alejar el celu (donde sí enfoca) y que el código se vea grande igual
+    const cont = $("zoom-btns");
+    cont.innerHTML = "";
+    const maxZ = cap.zoom ? Math.min(cap.zoom.max || 1, 4) : 1;
+    if (maxZ >= 1.5) {
+      const niveles = [1, 1.5, 2, 3, 4].filter((z) => z <= maxZ + 0.01 && z >= (cap.zoom.min || 1));
+      niveles.forEach((z) => {
+        const b = document.createElement("button");
+        b.className = "ctl"; b.textContent = z + "x"; b.dataset.z = z;
+        b.onclick = () => ponerZoom(z, true);
+        cont.appendChild(b);
+      });
+      const guardado = parseFloat(leerPref("lba_zoom"));
+      const inicial = guardado && guardado <= maxZ ? guardado : (esAndroid ? Math.min(2, maxZ) : 1);
+      await ponerZoom(inicial, false);
+    }
+    $("b-linterna").classList.toggle("oculto", !cap.torch);
+    $("b-linterna").classList.remove("activo");
+    $("b-camara").classList.toggle("oculto", camaras.length < 2);
+    $("controles").classList.toggle("oculto", maxZ < 1.5 && !cap.torch && camaras.length < 2);
+
+    const conZoom = maxZ >= 1.5 && parseFloat(leerPref("lba_zoom") || (esAndroid ? 2 : 1)) > 1;
+    aviso("", "Buscando código…", conZoom
+      ? "Alejá el celu (unos 20 a 25 cm) hasta que el código se vea nítido. Tocá la imagen para enfocar."
+      : "Acercá el DNI hasta que el código llene el recuadro. Tocá la imagen para enfocar.");
+  }
+
+  async function ponerZoom(z, elegidoPorUsuario) {
+    try { await track.applyConstraints({ advanced: [{ zoom: z }] }); } catch (e) { return; }
+    document.querySelectorAll("#zoom-btns .ctl").forEach((b) => b.classList.toggle("activo", parseFloat(b.dataset.z) === z));
+    if (elegidoPorUsuario) guardarPref("lba_zoom", String(z));
+  }
+
+  $("b-linterna").onclick = async () => {
+    linterna = !linterna;
+    try { await track.applyConstraints({ advanced: [{ torch: linterna }] }); } catch (e) { linterna = false; }
+    $("b-linterna").classList.toggle("activo", linterna);
+  };
+
+  $("b-camara").onclick = async () => {
+    if (camaras.length < 2) return;
+    const actual = track && track.getSettings ? track.getSettings().deviceId : null;
+    let i = camaras.findIndex((c) => c.deviceId === actual);
+    const sig = camaras[(i + 1) % camaras.length];
+    aviso("", "Cambiando de cámara…", "");
+    const ok = await iniciarCamara(sig.deviceId);
+    if (ok) {
+      const usada = track.getSettings ? track.getSettings().deviceId : sig.deviceId;
+      guardarPref("lba_cam", usada);
+      const n = camaras.findIndex((c) => c.deviceId === usada) + 1;
+      toast("Cámara " + (n || "?") + " de " + camaras.length + ". Probá cuál enfoca mejor.", 2500);
+    }
+  };
+
+  // Tocar la imagen para enfocar (funciona en los Android que lo permiten)
+  $("video").addEventListener("click", async (e) => {
+    if (!track) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+    const anillo = $("anillo");
+    anillo.style.left = e.clientX - 30 + "px"; anillo.style.top = e.clientY - 30 + "px";
+    anillo.classList.remove("oculto");
+    setTimeout(() => anillo.classList.add("oculto"), 700);
+    try {
+      await track.applyConstraints({ advanced: [{ pointsOfInterest: [{ x, y }], focusMode: "single-shot" }] });
+      setTimeout(() => {
+        track && track.applyConstraints({ advanced: [{ focusMode: "continuous" }] }).catch(() => {});
+      }, 1500);
+    } catch (err) {}
+  });
+
   function cerrarEscaner() {
     corriendo = false;
     if (stream) stream.getTracks().forEach((t) => t.stop());
-    stream = null;
+    stream = null; track = null;
     $("video").srcObject = null;
     $("escaner").classList.add("oculto");
   }

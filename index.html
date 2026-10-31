@@ -108,7 +108,7 @@
     position: absolute; left: 6%; right: 6%; top: 34%; height: 24%;
     border: 3px solid rgba(255,255,255,.9); border-radius: 14px;
     box-shadow: 0 0 0 9999px rgba(0,0,0,.45);
-    transition: border-color .15s;
+    transition: border-color .15s; pointer-events: none;
   }
   #escaner .marco.ok { border-color: #22C55E; }
   #escaner .marco.rep { border-color: #F59E0B; }
@@ -119,8 +119,19 @@
   }
   #escaner .arriba .t { font-weight: 700; }
   #escaner .arriba .c { font-variant-numeric: tabular-nums; background: rgba(255,255,255,.18); padding: 4px 12px; border-radius: 999px; font-weight: 700; }
-  #escaner .instr { position: absolute; z-index: 2; left: 0; right: 0; top: calc(34% - 64px); padding: 0 16px; text-align: center; color: #fff; font-size: 15px; text-shadow: 0 1px 3px #000; }
+  #escaner .instr { position: absolute; z-index: 2; left: 0; right: 0; top: calc(34% - 64px); padding: 0 16px; text-align: center; color: #fff; font-size: 15px; text-shadow: 0 1px 3px #000; pointer-events: none; }
   #escaner .abajo { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 16px); display: grid; gap: 10px; }
+  .controles { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  .controles .grupo { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ctl {
+    border: 0; border-radius: 999px; padding: 9px 14px; font-size: 14px; font-weight: 700;
+    background: rgba(0,0,0,.55); color: #fff; backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  }
+  .ctl.activo { background: #fff; color: var(--azul); }
+  #anillo {
+    position: fixed; z-index: 3; width: 60px; height: 60px; border-radius: 50%;
+    border: 2px solid #FACC15; pointer-events: none;
+  }
   #aviso {
     border-radius: 14px; padding: 14px 16px; background: rgba(255,255,255,.95); min-height: 64px;
     display: flex; flex-direction: column; justify-content: center;
@@ -258,7 +269,15 @@
     <div class="c" id="esc-cont">0</div>
   </div>
   <div class="instr">Poné el código de barras del dorso del DNI dentro del recuadro</div>
+  <div id="anillo" class="oculto"></div>
   <div class="abajo">
+    <div id="controles" class="controles oculto">
+      <div id="zoom-btns" class="grupo"></div>
+      <div class="grupo">
+        <button class="ctl oculto" id="b-linterna" aria-label="Linterna">Linterna</button>
+        <button class="ctl oculto" id="b-camara" aria-label="Cambiar cámara">Cambiar cámara</button>
+      </div>
+    </div>
     <div id="aviso"><div class="l1">Buscando código…</div><div class="l2">Acercá el DNI hasta que el código llene el recuadro</div></div>
     <button class="btn btn-sec" id="b-cerrar-esc" style="background:#fff">Listo</button>
   </div>

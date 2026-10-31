@@ -1,6 +1,6 @@
 // Service worker: guarda todos los archivos de la app para que funcione sin internet.
 // Al cambiar cualquier archivo, subir el número de VERSION para que los celulares actualicen.
-const VERSION = "lba-operativos-v3";
+const VERSION = "lba-operativos-v4";
 const ARCHIVOS = [
   "./",
   "index.html",
