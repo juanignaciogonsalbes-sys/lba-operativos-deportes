@@ -135,6 +135,20 @@
     }
   }
 
+  // ---------- Diálogos (con respaldo para iOS viejo) ----------
+  const hayDialog = typeof HTMLDialogElement === "function" && "showModal" in HTMLDialogElement.prototype;
+  function abrirDlg(id) {
+    const d = $(id);
+    if (hayDialog) d.showModal(); else d.classList.add("fallback-abierto");
+  }
+  function cerrarDlg(id) {
+    const d = $(id);
+    if (hayDialog) { if (d.open) d.close(); } else d.classList.remove("fallback-abierto");
+  }
+  document.querySelectorAll("dialog .cancelar").forEach((b) => {
+    b.addEventListener("click", () => cerrarDlg(b.closest("dialog").id));
+  });
+
   // ---------- Diálogo operativo ----------
   let editandoOp = null;
   function abrirDialogoOp(o) {
@@ -142,14 +156,14 @@
     $("d-op-tit").textContent = o ? "Editar operativo" : "Nuevo operativo";
     $("op-in-nombre").value = o ? o.nombre : "";
     $("op-in-fecha").value = o ? o.fecha : hoyISO();
-    $("d-op").showModal();
+    abrirDlg("d-op");
   }
   $("f-op").addEventListener("submit", (e) => {
-    const v = e.submitter && e.submitter.value;
-    if (v !== "ok") return;
+    e.preventDefault();
     const nombre = $("op-in-nombre").value.trim();
     const fecha = $("op-in-fecha").value || hoyISO();
-    if (!nombre) { e.preventDefault(); return; }
+    if (!nombre) return;
+    cerrarDlg("d-op");
     if (editandoOp) {
       editandoOp.nombre = nombre; editandoOp.fecha = fecha;
       guardar(); renderOp();
@@ -168,21 +182,21 @@
     $("pac-no").value = p ? p.nombre : "";
     $("pac-dni").value = p ? p.dni : "";
     $("pac-err").textContent = "";
-    $("d-pac").showModal();
+    abrirDlg("d-pac");
     if (!p) setTimeout(() => $("pac-ap").focus(), 50);
   }
   $("f-pac").addEventListener("submit", (e) => {
-    const v = e.submitter && e.submitter.value;
-    if (v !== "ok") return;
+    e.preventDefault();
     const ap = DNI.limpiarTexto($("pac-ap").value);
     const no = DNI.limpiarTexto($("pac-no").value);
     const dni = DNI.soloDigitos($("pac-dni").value);
     const err = $("pac-err");
-    if (!ap || !no) { e.preventDefault(); err.textContent = "Completá apellido y nombre."; return; }
-    if (!DNI.dniValido(dni)) { e.preventDefault(); err.textContent = "El DNI tiene que tener 7 u 8 números."; return; }
+    if (!ap || !no) { err.textContent = "Completá apellido y nombre."; return; }
+    if (!DNI.dniValido(dni)) { err.textContent = "El DNI tiene que tener 7 u 8 números."; return; }
     const o = op();
     const otro = o.pacientes.find((x) => x.dni === dni && x !== editandoPac);
-    if (otro) { e.preventDefault(); err.textContent = "Ese DNI ya está cargado: " + an(otro); return; }
+    if (otro) { err.textContent = "Ese DNI ya está cargado: " + an(otro); return; }
+    cerrarDlg("d-pac");
     if (editandoPac) {
       editandoPac.apellido = ap; editandoPac.nombre = no; editandoPac.dni = dni;
       guardar();
@@ -213,12 +227,23 @@
   }
 
   // ---------- Lector ZXing ----------
-  ZXingWASM.prepareZXingModule({
-    overrides: {
-      locateFile: (path, prefix) => (path.endsWith(".wasm") ? "lib/zxing_reader.wasm" : prefix + path),
-    },
-    fireImmediately: true,
-  }).catch(() => {});
+  // Si falta la librería, el resto de la app sigue funcionando (carga manual, exportar).
+  const hayLector = typeof ZXingWASM !== "undefined";
+  if (hayLector) {
+    try {
+      ZXingWASM.prepareZXingModule({
+        overrides: {
+          locateFile: (path, prefix) => (path.endsWith(".wasm") ? "zxing_reader.wasm" : prefix + path),
+        },
+        fireImmediately: true,
+      }).catch((e) => window.mostrarDiag && window.mostrarDiag("No cargó el lector (zxing_reader.wasm): " + (e && e.message)));
+    } catch (e) {}
+  }
+  function lectorDisponible() {
+    if (hayLector) return true;
+    toast("Falta el archivo zxing-reader.js. Usá carga manual.");
+    return false;
+  }
 
   const OPC_VIDEO = { formats: ["PDF417"], tryHarder: true, tryRotate: true, tryInvert: false, maxNumberOfSymbols: 1 };
   const OPC_FOTO = { formats: ["PDF417"], tryHarder: true, tryRotate: true, tryInvert: true, tryDownscale: true, maxNumberOfSymbols: 1 };
@@ -250,6 +275,7 @@
 
   async function abrirEscaner() {
     prepararAudio();
+    if (!lectorDisponible()) return;
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       toast("Este navegador no permite usar la cámara. Usá 'Sacar foto del DNI'.");
       return;
@@ -346,7 +372,7 @@
   }
 
   // ---------- Foto del DNI (respaldo) ----------
-  $("b-foto").onclick = () => { prepararAudio(); $("in-foto").click(); };
+  $("b-foto").onclick = () => { prepararAudio(); if (lectorDisponible()) $("in-foto").click(); };
   $("in-foto").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0];
     e.target.value = "";
@@ -389,6 +415,7 @@
   async function exportar() {
     const o = op();
     if (!o.pacientes.length) { toast("No hay pacientes para exportar."); return; }
+    if (typeof XLSX === "undefined") { toast("Falta xlsx.mini.min.js, no se puede armar el Excel."); return; }
     const filas = [["APELLIDO Y NOMBRE", "DNI"]].concat(o.pacientes.map((p) => [an(p), Number(p.dni)]));
     const ws = XLSX.utils.aoa_to_sheet(filas);
     ws["!cols"] = [{ wch: 42 }, { wch: 12 }];
@@ -459,4 +486,7 @@
   }
 
   renderInicio();
+  window.__appOk = true;
+  const aviso0 = document.getElementById("sin-js");
+  if (aviso0) aviso0.remove();
 })();

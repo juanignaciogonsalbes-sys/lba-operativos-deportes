@@ -15,7 +15,7 @@ App web instalable (PWA). Funciona **sin internet** una vez instalada y anda en 
 ## Publicarla (una sola vez, gratis, con GitHub Pages)
 Para usar la cámara, la app tiene que estar en una dirección `https://`.
 1. En GitHub, creá un repositorio nuevo (por ejemplo `lba-operativos`).
-2. Subí **todo el contenido de esta carpeta** (index.html, app.js, dni.js, sw.js, manifest.json, y las carpetas `lib` e `icons`). Desde la web: *Add file → Upload files*.
+2. Descomprimí el zip y subí **los 12 archivos** (Add file → Upload files → seleccioná todos juntos). Van todos sueltos en la raíz del repo, sin carpetas. Si ya había archivos de antes, se reemplazan solos.
 3. Andá a *Settings → Pages*, en *Branch* elegí `main` y `/ (root)`, y tocá *Save*.
 4. Al minuto queda en `https://TU-USUARIO.github.io/lba-operativos/`.
 

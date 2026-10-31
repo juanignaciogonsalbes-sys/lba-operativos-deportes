@@ -1,18 +1,18 @@
 // Service worker: guarda todos los archivos de la app para que funcione sin internet.
 // Al cambiar cualquier archivo, subir el número de VERSION para que los celulares actualicen.
-const VERSION = "lba-operativos-v1";
+const VERSION = "lba-operativos-v3";
 const ARCHIVOS = [
   "./",
   "index.html",
   "app.js",
   "dni.js",
   "manifest.json",
-  "lib/zxing-reader.js",
-  "lib/zxing_reader.wasm",
-  "lib/xlsx.mini.min.js",
-  "icons/icon-180.png",
-  "icons/icon-192.png",
-  "icons/icon-512.png",
+  "zxing-reader.js",
+  "zxing_reader.wasm",
+  "xlsx.mini.min.js",
+  "icon-180.png",
+  "icon-192.png",
+  "icon-512.png",
 ];
 
 self.addEventListener("install", (e) => {
@@ -27,10 +27,18 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Primero la copia guardada; si no está, la red.
+// Responde con la copia guardada (rápido y sin internet) y, si hay conexión,
+// la actualiza en segundo plano para la próxima vez que se abra.
 self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
+  if (e.request.method !== "GET" || !e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((r) => r || fetch(e.request))
+    caches.open(VERSION).then((c) =>
+      c.match(e.request, { ignoreSearch: true }).then((guardada) => {
+        const red = fetch(e.request)
+          .then((r) => { if (r && r.ok) c.put(e.request, r.clone()); return r; })
+          .catch(() => guardada);
+        return guardada || red;
+      })
+    )
   );
 });

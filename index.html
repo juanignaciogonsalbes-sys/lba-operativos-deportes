@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="LBA Operativos">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
-<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
 <title>LBA Operativos</title>
 <style>
   :root {
@@ -135,6 +135,12 @@
   #aviso.err .l1 { color: var(--rojo); }
 
   dialog { border: 0; border-radius: 16px; padding: 20px; width: min(92vw, 440px); }
+  /* Respaldo para iPhone con iOS anterior a 15.4 (sin <dialog>) */
+  dialog:not([open]):not(.fallback-abierto) { display: none; }
+  dialog.fallback-abierto {
+    display: block; position: fixed; z-index: 40; top: 12vh; left: 50%; transform: translateX(-50%);
+    background: #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.45);
+  }
   dialog::backdrop { background: rgba(0,0,0,.45); }
   dialog h2 { margin: 0 0 4px; font-size: 20px; }
   dialog .acciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
@@ -148,6 +154,49 @@
 </style>
 </head>
 <body>
+
+<!-- Diagnóstico: va inline para que funcione aunque falten los otros archivos -->
+<div id="diag" style="display:none;position:sticky;top:0;z-index:50;background:#B91C1C;color:#fff;padding:calc(env(safe-area-inset-top) + 10px) 16px 12px;font-size:14px;line-height:1.4"></div>
+<script>
+(function () {
+  var errores = [];
+  function mostrarDiag(msg) {
+    errores.push(msg);
+    var d = document.getElementById("diag");
+    d.innerHTML = "<b>La app no arrancó bien.</b> Mandale esto a Juani:<br>" +
+      errores.map(function (e) { return "• " + String(e).replace(/</g, "&lt;"); }).join("<br>");
+    d.style.display = "block";
+  }
+  window.mostrarDiag = mostrarDiag;
+  window.addEventListener("error", function (e) {
+    if (e.target && e.target !== window && (e.target.src || e.target.href)) {
+      mostrarDiag("No se pudo cargar: " + (e.target.src || e.target.href));
+    } else {
+      mostrarDiag((e.message || "Error") + " (" + String(e.filename || "").split("/").pop() + ":" + (e.lineno || "?") + ")");
+    }
+  }, true);
+  window.addEventListener("unhandledrejection", function (e) {
+    mostrarDiag("Promesa: " + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+  if (location.protocol === "file:" || location.protocol === "content:") {
+    mostrarDiag("Abriste el archivo directo desde el celular. Así no funciona: hay que abrir el link https:// de GitHub Pages en Safari.");
+  }
+  window.addEventListener("load", function () {
+    var faltan = [];
+    if (typeof DNI === "undefined") faltan.push("dni.js");
+    if (typeof ZXingWASM === "undefined") faltan.push("zxing-reader.js");
+    if (typeof XLSX === "undefined") faltan.push("xlsx.mini.min.js");
+    if (!window.__appOk) faltan.push("app.js");
+    if (faltan.length) mostrarDiag("Faltan archivos o no cargaron: " + faltan.join(", ") + ". Revisá que estén subidos con esos nombres (tienen que estar todos en la raíz del repo).");
+  });
+})();
+</script>
+
+<!-- Este cartel lo oculta app.js al arrancar. Si se ve, el código no está corriendo. -->
+<div id="sin-js" style="background:#FEF3C7;color:#713F12;padding:14px 16px;font-size:14px;line-height:1.45;border-bottom:1px solid #F59E0B">
+  <b>Si ves este cartel, la app no está funcionando.</b><br>
+  Lo más común: se abrió el archivo directo (desde Archivos, WhatsApp o Drive). Hay que abrir el link <b>https://…github.io/…</b> en <b>Safari</b> (iPhone) o <b>Chrome</b> (Android) y agregarla a la pantalla de inicio desde ahí.
+</div>
 
 <!-- ===== Pantalla: lista de operativos ===== -->
 <section id="v-inicio">
@@ -224,7 +273,7 @@
     <label for="op-in-fecha">Fecha</label>
     <input type="date" id="op-in-fecha" required>
     <div class="acciones">
-      <button class="btn btn-sec" value="cancel" formnovalidate>Cancelar</button>
+      <button type="button" class="btn btn-sec cancelar">Cancelar</button>
       <button class="btn btn-primario" value="ok">Guardar</button>
     </div>
   </form>
@@ -243,15 +292,15 @@
     <div class="ayuda">Solo números, 7 u 8 dígitos.</div>
     <div class="error" id="pac-err"></div>
     <div class="acciones">
-      <button class="btn btn-sec" value="cancel" formnovalidate>Cancelar</button>
+      <button type="button" class="btn btn-sec cancelar">Cancelar</button>
       <button class="btn btn-primario" value="ok" id="pac-ok">Guardar</button>
     </div>
   </form>
 </dialog>
 
 <script src="dni.js"></script>
-<script src="lib/zxing-reader.js"></script>
-<script src="lib/xlsx.mini.min.js"></script>
+<script src="zxing-reader.js"></script>
+<script src="xlsx.mini.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
