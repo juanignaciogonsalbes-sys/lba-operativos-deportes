@@ -1,0 +1,17 @@
+{
+  "name": "LBA Operativos",
+  "short_name": "LBA Operativos",
+  "description": "Registro de pacientes en operativos escaneando el DNI",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#1E66B0",
+  "lang": "es-AR",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

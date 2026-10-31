@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E66B0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="LBA Operativos">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<title>LBA Operativos</title>
+<style>
+  :root {
+    --azul: #1E66B0;
+    --azul-osc: #154C85;
+    --azul-claro: #E8F0F9;
+    --negro: #111;
+    --gris: #6B7280;
+    --borde: #E5E7EB;
+    --fondo: #F6F7F9;
+    --verde: #15803D;
+    --verde-claro: #DCFCE7;
+    --amarillo: #A16207;
+    --amarillo-claro: #FEF3C7;
+    --rojo: #B91C1C;
+    --rojo-claro: #FEE2E2;
+    --blanco: #fff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--fondo); color: var(--negro); font-size: 16px;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--blanco); border-bottom: 3px solid var(--azul);
+    padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  header .marca { font-weight: 800; letter-spacing: .02em; }
+  header .marca span { color: var(--azul); }
+  header .sub { color: var(--gris); font-size: 13px; }
+  header button.volver { border: 0; background: none; font-size: 26px; color: var(--azul); padding: 0 6px 0 0; line-height: 1; }
+  header .titulos { flex: 1; min-width: 0; }
+  header .titulos div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .contador { background: var(--azul); color: #fff; border-radius: 999px; padding: 4px 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  main { padding: 16px; max-width: 640px; margin: 0 auto; }
+  .oculto { display: none !important; }
+
+  button { font: inherit; cursor: pointer; }
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    width: 100%; border: 0; border-radius: 12px; padding: 14px 16px;
+    font-weight: 600; font-size: 16px;
+  }
+  .btn-primario { background: var(--azul); color: #fff; }
+  .btn-primario:active { background: var(--azul-osc); }
+  .btn-grande { padding: 22px 16px; font-size: 19px; }
+  .btn-sec { background: var(--blanco); color: var(--azul); border: 1.5px solid var(--azul); }
+  .btn-peligro { background: var(--blanco); color: var(--rojo); border: 1.5px solid var(--rojo-claro); }
+  .fila-btn { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+
+  .tarjeta { background: var(--blanco); border: 1px solid var(--borde); border-radius: 14px; padding: 14px; }
+  .lista-ops { display: grid; gap: 10px; margin-top: 16px; }
+  .op { display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; }
+  .op .info { flex: 1; min-width: 0; }
+  .op .nom { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .op .meta { color: var(--gris); font-size: 14px; }
+  .op .num { font-size: 22px; font-weight: 800; color: var(--azul); font-variant-numeric: tabular-nums; }
+  .vacio { color: var(--gris); text-align: center; padding: 28px 8px; }
+
+  .seccion-tit { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--gris); margin: 22px 2px 8px; font-weight: 700; }
+
+  .lector-ext { display: flex; gap: 8px; margin-top: 10px; }
+  .lector-ext input { flex: 1; }
+
+  input[type=text], input[type=date], input[inputmode=numeric] {
+    width: 100%; font: inherit; font-size: 16px; padding: 12px; border-radius: 10px;
+    border: 1.5px solid var(--borde); background: #fff; color: var(--negro);
+  }
+  input:focus { outline: none; border-color: var(--azul); }
+  label { display: block; font-size: 14px; font-weight: 600; margin: 12px 0 6px; }
+  .ayuda { font-size: 13px; color: var(--gris); margin-top: 4px; }
+  .error { color: var(--rojo); font-size: 14px; margin-top: 8px; min-height: 1em; }
+
+  .pacientes { background: var(--blanco); border: 1px solid var(--borde); border-radius: 14px; overflow: hidden; }
+  .pac { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-top: 1px solid var(--borde); }
+  .pac:first-child { border-top: 0; }
+  .pac .n { width: 32px; color: var(--gris); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .pac .datos { flex: 1; min-width: 0; }
+  .pac .an { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pac .dni { color: var(--gris); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .pac .tag { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: var(--azul-claro); color: var(--azul); font-weight: 700; margin-left: 6px; }
+  .pac .tag.manual { background: var(--amarillo-claro); color: var(--amarillo); }
+  .pac button { border: 0; background: none; color: var(--gris); font-size: 20px; padding: 4px 6px; }
+  .buscar { margin-bottom: 10px; }
+
+  /* Escáner */
+  #escaner { position: fixed; inset: 0; background: #000; z-index: 20; display: flex; flex-direction: column; }
+  #escaner video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  #escaner .marco {
+    position: absolute; left: 6%; right: 6%; top: 34%; height: 24%;
+    border: 3px solid rgba(255,255,255,.9); border-radius: 14px;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,.45);
+    transition: border-color .15s;
+  }
+  #escaner .marco.ok { border-color: #22C55E; }
+  #escaner .marco.rep { border-color: #F59E0B; }
+  #escaner .arriba {
+    position: relative; z-index: 2; color: #fff;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  }
+  #escaner .arriba .t { font-weight: 700; }
+  #escaner .arriba .c { font-variant-numeric: tabular-nums; background: rgba(255,255,255,.18); padding: 4px 12px; border-radius: 999px; font-weight: 700; }
+  #escaner .instr { position: absolute; z-index: 2; left: 0; right: 0; top: calc(34% - 64px); padding: 0 16px; text-align: center; color: #fff; font-size: 15px; text-shadow: 0 1px 3px #000; }
+  #escaner .abajo { position: absolute; z-index: 2; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 16px); display: grid; gap: 10px; }
+  #aviso {
+    border-radius: 14px; padding: 14px 16px; background: rgba(255,255,255,.95); min-height: 64px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  #aviso .l1 { font-weight: 800; font-size: 17px; }
+  #aviso .l2 { font-size: 14px; color: var(--gris); }
+  #aviso.ok { background: var(--verde-claro); }
+  #aviso.ok .l1 { color: var(--verde); }
+  #aviso.rep { background: var(--amarillo-claro); }
+  #aviso.rep .l1 { color: var(--amarillo); }
+  #aviso.err { background: var(--rojo-claro); }
+  #aviso.err .l1 { color: var(--rojo); }
+
+  dialog { border: 0; border-radius: 16px; padding: 20px; width: min(92vw, 440px); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  dialog h2 { margin: 0 0 4px; font-size: 20px; }
+  dialog .acciones { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; }
+
+  .toast {
+    position: fixed; left: 16px; right: 16px; bottom: calc(env(safe-area-inset-bottom) + 18px); z-index: 30;
+    background: var(--negro); color: #fff; border-radius: 12px; padding: 14px 16px; text-align: center;
+    max-width: 480px; margin: 0 auto; font-weight: 600;
+  }
+  .pie { text-align: center; color: var(--gris); font-size: 12px; margin: 28px 0 8px; }
+</style>
+</head>
+<body>
+
+<!-- ===== Pantalla: lista de operativos ===== -->
+<section id="v-inicio">
+  <header>
+    <div class="titulos">
+      <div class="marca">CMI <span>L.B.A.</span></div>
+      <div class="sub">Registro de pacientes en operativos</div>
+    </div>
+  </header>
+  <main>
+    <button class="btn btn-primario btn-grande" id="b-nuevo-op">+ Nuevo operativo</button>
+    <div class="seccion-tit">Operativos en este celular</div>
+    <div id="lista-ops" class="lista-ops"></div>
+    <div class="pie" id="pie-estado"></div>
+  </main>
+</section>
+
+<!-- ===== Pantalla: operativo ===== -->
+<section id="v-op" class="oculto">
+  <header>
+    <button class="volver" id="b-volver" aria-label="Volver">‹</button>
+    <div class="titulos">
+      <div class="marca" id="op-nombre"></div>
+      <div class="sub" id="op-fecha"></div>
+    </div>
+    <div class="contador" id="op-contador">0</div>
+  </header>
+  <main>
+    <button class="btn btn-primario btn-grande" id="b-escanear">Escanear DNI</button>
+    <div class="fila-btn">
+      <button class="btn btn-sec" id="b-foto">Sacar foto del DNI</button>
+      <button class="btn btn-sec" id="b-manual">Carga manual</button>
+    </div>
+    <input type="file" id="in-foto" accept="image/*" capture="environment" class="oculto">
+
+    <div class="lector-ext">
+      <input type="text" id="in-lector" placeholder="Lector externo: tocá acá y escaneá" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </div>
+
+    <div class="seccion-tit">Pacientes</div>
+    <input type="text" class="buscar oculto" id="in-buscar" placeholder="Buscar por apellido o DNI">
+    <div class="pacientes" id="lista-pac"></div>
+
+    <div class="seccion-tit">Al terminar</div>
+    <button class="btn btn-primario" id="b-exportar">Exportar Excel</button>
+    <div class="fila-btn">
+      <button class="btn btn-sec" id="b-renombrar">Editar operativo</button>
+      <button class="btn btn-peligro" id="b-borrar-op">Borrar operativo</button>
+    </div>
+  </main>
+</section>
+
+<!-- ===== Escáner con cámara ===== -->
+<div id="escaner" class="oculto">
+  <video id="video" playsinline muted autoplay></video>
+  <div class="marco" id="marco"></div>
+  <div class="arriba">
+    <div class="t" id="esc-op"></div>
+    <div class="c" id="esc-cont">0</div>
+  </div>
+  <div class="instr">Poné el código de barras del dorso del DNI dentro del recuadro</div>
+  <div class="abajo">
+    <div id="aviso"><div class="l1">Buscando código…</div><div class="l2">Acercá el DNI hasta que el código llene el recuadro</div></div>
+    <button class="btn btn-sec" id="b-cerrar-esc" style="background:#fff">Listo</button>
+  </div>
+</div>
+
+<!-- ===== Diálogo: nuevo / editar operativo ===== -->
+<dialog id="d-op">
+  <form method="dialog" id="f-op">
+    <h2 id="d-op-tit">Nuevo operativo</h2>
+    <label for="op-in-nombre">Club / lugar</label>
+    <input type="text" id="op-in-nombre" placeholder="Ej: Club Atlético Ejemplo - Sub 15" required>
+    <label for="op-in-fecha">Fecha</label>
+    <input type="date" id="op-in-fecha" required>
+    <div class="acciones">
+      <button class="btn btn-sec" value="cancel" formnovalidate>Cancelar</button>
+      <button class="btn btn-primario" value="ok">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===== Diálogo: paciente manual / editar ===== -->
+<dialog id="d-pac">
+  <form method="dialog" id="f-pac">
+    <h2 id="d-pac-tit">Carga manual</h2>
+    <label for="pac-ap">Apellido</label>
+    <input type="text" id="pac-ap" autocapitalize="characters" autocomplete="off" required>
+    <label for="pac-no">Nombre</label>
+    <input type="text" id="pac-no" autocapitalize="characters" autocomplete="off" required>
+    <label for="pac-dni">DNI</label>
+    <input type="text" inputmode="numeric" pattern="[0-9.]*" id="pac-dni" autocomplete="off" required>
+    <div class="ayuda">Solo números, 7 u 8 dígitos.</div>
+    <div class="error" id="pac-err"></div>
+    <div class="acciones">
+      <button class="btn btn-sec" value="cancel" formnovalidate>Cancelar</button>
+      <button class="btn btn-primario" value="ok" id="pac-ok">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="dni.js"></script>
+<script src="lib/zxing-reader.js"></script>
+<script src="lib/xlsx.mini.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
