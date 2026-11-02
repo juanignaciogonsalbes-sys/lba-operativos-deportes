@@ -444,17 +444,17 @@
     $("escaner").classList.add("oculto");
   }
 
-  // Recorta una franja horizontal alrededor del recuadro, con todo el ancho del video
-  // (así lee aunque el código se salga un poco de los costados).
+  // Recorta una zona de todo el ancho del video, centrada en el recuadro, y tan alta
+  // como ancha (cuadrada): así entra el QR (cuadrado) entero y también el código de barras.
   function recorte(v) {
     const vw = v.videoWidth, vh = v.videoHeight;
     const sw = v.clientWidth, sh = v.clientHeight;
     const esc = Math.max(sw / vw, sh / vh);
     const offY = (sh - vh * esc) / 2;
     const m = $("marco").getBoundingClientRect();
-    let y = (m.top - m.height * 0.5 - offY) / esc;
-    let h = (m.height * 2) / esc;
-    y = Math.max(0, y); h = Math.min(vh - y, h);
+    const cy = (m.top + m.height / 2 - offY) / esc;
+    const h = Math.min(vh, vw);
+    const y = Math.max(0, Math.min(vh - h, cy - h / 2));
     return { x: 0, y, w: vw, h };
   }
 

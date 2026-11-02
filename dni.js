@@ -46,6 +46,12 @@
       return armar({ dni: soloDigitos(p[4]), apellido: limpiarTexto(p[1]), nombre: limpiarTexto(p[2]),
         sexo: p[3] || "", nacimiento: p[6] || "", formato: "nuevo" });
     }
+    // QR del DNI nuevo (2026): TRAMITE@APELLIDO@NOMBRE@DNI@EJEMPLAR@NACIMIENTO@EMISION@FIRMA(JWT)
+    // Se exige que apellido y nombre no tengan números, para no confundirlo con otros textos.
+    if (p.length >= 6 && /^\d{8,11}$/.test(p[0]) && dniValido(soloDigitos(p[3])) && !/\d/.test(p[1]) && !/\d/.test(p[2])) {
+      return armar({ dni: soloDigitos(p[3]), apellido: limpiarTexto(p[1]), nombre: limpiarTexto(p[2]),
+        sexo: "", nacimiento: p[5] || "", formato: "qr-2026" });
+    }
     return null;
   }
 
