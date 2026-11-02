@@ -4,13 +4,16 @@ App web instalable (PWA). Funciona **sin internet** una vez instalada y anda en 
 
 ## Qué hace
 - Un operativo por celular (club/lugar + fecha). Cada coordinador trabaja en su propio celu, así que varios operativos el mismo día no se mezclan.
-- **Escanear DNI** con la cámara: lee el código PDF417 del dorso, saca APELLIDO, NOMBRE y DNI. Hace un pitido y se pone verde. Si el DNI ya estaba cargado, avisa en amarillo y no lo duplica.
+- **Escanear DNI** con la cámara: lee el código de barras (PDF417) del DNI tarjeta anterior **y el QR del DNI nuevo**, y saca APELLIDO, NOMBRE y DNI. Hace un pitido y se pone verde. Si el DNI ya estaba cargado, avisa en amarillo y no lo duplica.
 - **Sacar foto del DNI**: respaldo por si el escaneo en vivo cuesta (poca luz, celular viejo).
 - **Carga manual**: para DNI en libreta o con el código dañado. Valida que el DNI tenga 7 u 8 números y que no esté repetido.
 - **Lector externo**: si conectás un lector 2D Bluetooth (modo teclado), tocás el campo y escaneás.
 - Todo en MAYÚSCULAS y sin tildes, como figura en el DNI (se mantiene la Ñ).
 - **Exportar Excel**: dos columnas, `APELLIDO Y NOMBRE` | `DNI`. En el celu se abre el menú para compartir (WhatsApp, Mail, Archivos).
 - Los datos quedan guardados en el celu aunque se cierre la app. Al borrar un operativo, la app avisa si todavía no se exportó.
+
+## DNI nuevo (con QR)
+El formato de los datos del QR del DNI nuevo no está publicado oficialmente. La app prueba varias formas conocidas (texto con `@`, JSON, enlace con datos, base64) y, si no lo reconoce con seguridad, **no carga nada**: avisa y ofrece **"Copiar lectura"** para poder ajustar el lector. Si el QR es solo un enlace sin datos, usar carga manual.
 
 ## Publicarla (una sola vez, gratis, con GitHub Pages)
 Para usar la cámara, la app tiene que estar en una dirección `https://`.

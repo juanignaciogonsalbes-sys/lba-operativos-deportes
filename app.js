@@ -245,23 +245,47 @@
     return false;
   }
 
-  const OPC_VIDEO = { formats: ["PDF417"], tryHarder: true, tryRotate: true, tryInvert: false, maxNumberOfSymbols: 1 };
-  const OPC_FOTO = { formats: ["PDF417"], tryHarder: true, tryRotate: true, tryInvert: true, tryDownscale: true, maxNumberOfSymbols: 1 };
+  // PDF417 = código de barras del DNI tarjeta anterior. QRCode = DNI nuevo.
+  const OPC_VIDEO = { formats: ["PDF417", "QRCode"], tryHarder: true, tryRotate: true, tryInvert: false, maxNumberOfSymbols: 1 };
+  const OPC_FOTO = { formats: ["PDF417", "QRCode"], tryHarder: true, tryRotate: true, tryInvert: true, tryDownscale: true, maxNumberOfSymbols: 1 };
+
+  // Último código leído que la app no supo interpretar (solo en memoria, no se guarda).
+  // Sirve para copiarlo y poder ajustar el lector a un formato nuevo.
+  let ultimaRara = null;
+  function actualizarBtnRara() { $("b-copiar-rara").classList.toggle("oculto", !ultimaRara); }
+  async function copiarRara() {
+    if (!ultimaRara) return;
+    const t = ultimaRara.raw;
+    let ok = false;
+    try { await navigator.clipboard.writeText(t); ok = true; } catch (e) {}
+    if (!ok) {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = t; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.select(); ok = document.execCommand("copy"); ta.remove();
+      } catch (e) {}
+    }
+    toast(ok ? "Texto copiado (" + t.length + " caracteres)." : "No se pudo copiar.", 2500);
+  }
 
   // Procesa el texto leído de un código. Devuelve el resultado para mostrar.
   function procesarTexto(raw, origen) {
     let txt = raw;
     // Lectores externos con distinto idioma de teclado pueden mandar " en vez de @
-    if (txt.indexOf("@") === -1 && txt.indexOf('"') !== -1) txt = txt.replace(/"/g, "@");
-    const d = DNI.parsear(txt);
-    if (!d) return { estado: "error" };
-    const r = agregarPaciente(d, origen);
+    if (txt.indexOf("@") === -1 && txt.indexOf("{") === -1 && txt.indexOf('"') !== -1) txt = txt.replace(/"/g, "@");
+    const a = DNI.analizar(txt);
+    if (!a.ok) {
+      ultimaRara = { raw: raw, tipo: a.tipo, detalle: a.detalle, largo: a.largo };
+      actualizarBtnRara();
+      return { estado: "error", info: ultimaRara };
+    }
+    const r = agregarPaciente(a.datos, origen);
     renderOp();
     return r;
   }
 
   // ---------- Escáner con cámara ----------
-  let stream = null, corriendo = false, ultimoDni = "", ultimoT = 0;
+  let stream = null, corriendo = false, ultimoRaw = "", ultimoT = 0;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
@@ -271,6 +295,7 @@
     a.querySelector(".l1").textContent = l1;
     a.querySelector(".l2").textContent = l2 || "";
     $("marco").className = "marco" + (clase ? " " + clase : "");
+    $("b-copiar-esc").classList.add("oculto");
   }
 
   async function abrirEscaner() {
@@ -451,11 +476,12 @@
   }
 
   function manejarLectura(texto) {
-    const d = DNI.parsear(texto);
     const ahora = Date.now();
-    // Evita procesar el mismo DNI varias veces seguidas mientras sigue en cámara
-    if (d && d.dni === ultimoDni && ahora - ultimoT < 4000) return;
-    if (d) { ultimoDni = d.dni; ultimoT = ahora; }
+    // Mientras el mismo código siga a la vista no se procesa de nuevo (ni suena otra vez).
+    // Si se aparta más de 2 segundos y se vuelve a mostrar, avisa "ya estaba cargado".
+    const mismo = texto === ultimoRaw && ahora - ultimoT < 2000;
+    ultimoRaw = texto; ultimoT = ahora;
+    if (mismo) return;
     const r = procesarTexto(texto, "escaneo");
     mostrarResultado(r);
   }
@@ -469,7 +495,12 @@
       aviso("rep", "Ya estaba cargado", an(r.p) + " · DNI " + Number(r.p.dni).toLocaleString("es-AR"));
     } else {
       beep("rep");
-      aviso("err", "No es un DNI válido", "Probá de nuevo o usá carga manual");
+      const i = r.info || {};
+      let l1 = "No pude leer los datos", l2 = "Probá de nuevo o usá carga manual";
+      if (i.tipo === "url") { l1 = "El QR es un enlace"; l2 = "No trae los datos del DNI (" + i.detalle + "). Usá carga manual."; }
+      else if (i.tipo === "desconocido") { l2 = "Leí un código, pero con un formato que la app no reconoce. Usá carga manual o tocá 'Copiar lectura'."; }
+      aviso("err", l1, l2);
+      $("b-copiar-esc").classList.toggle("oculto", !ultimaRara);
     }
   }
 
@@ -487,7 +518,8 @@
       const r = procesarTexto(ok.text, "foto");
       if (r.estado === "ok") { beep("ok"); toast("✓ " + an(r.p)); }
       else if (r.estado === "repetido") { beep("rep"); toast("Ya estaba cargado: " + an(r.p)); }
-      else toast("El código no parece de un DNI. Usá carga manual.");
+      else if (r.info && r.info.tipo === "url") toast("El QR es un enlace y no trae los datos. Usá carga manual.", 5000);
+      else toast("Leí el código pero no reconozco el formato. Usá carga manual o 'Copiar última lectura no reconocida'.", 5000);
     } catch (err) {
       toast("No se pudo leer la foto.");
     }
@@ -563,6 +595,8 @@
   $("b-volver").onclick = () => { opActual = null; $("in-buscar").value = ""; renderInicio(); mostrar("inicio"); };
   $("b-escanear").onclick = abrirEscaner;
   $("b-cerrar-esc").onclick = cerrarEscaner;
+  $("b-copiar-esc").onclick = copiarRara;
+  $("b-copiar-rara").onclick = copiarRara;
   $("b-manual").onclick = () => abrirDialogoPaciente(null);
   $("b-exportar").onclick = exportar;
   $("b-renombrar").onclick = () => abrirDialogoOp(op());
